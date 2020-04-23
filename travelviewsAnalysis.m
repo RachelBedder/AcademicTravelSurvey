@@ -1,17 +1,19 @@
 clear all
 close all
 
-[~,rawExcel,~] = xlsread('C:\Users\rbedder\Dropbox\MATLAB\PhD_Matlab\Academic_Travel_Survey\travelviewsData.xlsx');
-[numExcel,~,~] = xlsread('C:\Users\rbedder\Dropbox\MATLAB\PhD_Matlab\Academic_Travel_Survey\travelviewsNumerical.xlsx');
+%% Academic Travel Survey - Online November 2019
+% Survey by Rachel Bedder and Steve Fleming (UCL)
+% Code by Rachel Bedder (rachel.bedder.15@ucl.ac.uk)
 
-%edits to excel
+% Updates posted on https://github.com/RachelBedder/AcademicTravelSurvey
 
-%1 means junior (research assistant, lab manager, transition to postdoc
-%7 means senior (midcareer faculty,
 
-%When they had to give number of flights etc, the 0 exported as numerical
-%and 1-2 etc as text. Changed this row to text in the data extraction and
-%changed 0 to 0-0
+%% ...extract data from excel files
+cd
+[~,rawExcel,~] = xlsread('travelviewsData.xlsx');
+[numExcel,~,~] = xlsread('travelviewsNumerical.xlsx');
+
+
 
 %% get the excel labels
 
@@ -31,22 +33,15 @@ incomplete  =   sum(cellfun('isempty',textExcel),2)>50;
 textExcel   =   textExcel(~incomplete,:);
 numExcel    =   numExcel(~incomplete,:);
 
-%% make an index for some FAQ
 
-i.position    =   47;
-i.gender      =   49;
-i.location    =   50;
-i.funder      =   53;
-i.disability  =   56;
+%% For each of the questions, match the text answers to the numerical response
 
-%% match the text to the numbers
+quests = [3:59]; %...this refers to the columns in the excel files
 
-cols = [3:59];
-
-for groups = cols %...for each column of the excel (i.e. for each individual response)
+for iQ = quests 
     
-tmpNum   =   unique(numExcel(:,groups),'stable'); 
-tmpText  =   unique(textExcel(:,groups),'stable');   
+tmpNum   =   unique(numExcel(:,iQ),'stable'); 
+tmpText  =   unique(textExcel(:,iQ),'stable');   
 
 if cellfun(@isempty,tmpText)
 
@@ -57,14 +52,14 @@ end
 tmpText(cellfun(@isempty, tmpText)) = [];
 
 if sum(isnan(tmpNum)~=0)
-% tmpText(isnan(tmpNum)) = []; 
-tmpNum(isnan(tmpNum)) = [];     tmpNum(end+1) = nan;
+tmpNum(isnan(tmpNum)) = [];     
+tmpNum(end+1) = nan;
 tmpText(isnan(tmpNum)) = {'NaN'};
-end %it seems that the first one will be empty, not the last? what is empty and not a nan
+end 
     
 [tmpNum,sortNum] = sort(tmpNum);
 
-respKey{groups} = [num2cell(tmpNum) tmpText(sortNum)];
+respKey{iQ} = [num2cell(tmpNum) tmpText(sortNum)];
 
 end
     
@@ -72,12 +67,15 @@ end
 
 
 
-%% new numerical analysis
+%% Create plots and tables for different splits of the data.
 
-% yQuest      =     [3 5 6 16 17 40]; %the corresponds to rows in the quesExcel (so individual questions)
-yQuest      =     [31]; %the corresponds to rows in the quesExcel (so individual questions)
+%... first identify the questions (columns in the excel data)
+quests          =       [3 5 6 16 17 31 40]; 
+%...chose an index key from below, this will just run one split at a time
+%so do not add a vector. These will select from the index keys below
+splitGroup      =       [2];
 
-%build an index key
+if splitGroup == [1];
 tableName           =       {'CarbonNeutralAgree'};
 i.lower  = 1;
 i.higher  = 2;
@@ -90,50 +88,50 @@ groups              =       numExcel(:,3);
 groups(groups<=1)    =       i.lower;
 groups(groups>1)   =       i.higher;
 
+elseif splitGroup == [2];
+    
+tableName           =       {'JuniorSenior'};
+i.junior  = 1;
+i.senior  = 2;
+groupUnique         =        [i.junior i.senior];
+groupLabels         =        {'Junior','Senior'};
+groupColors         =        {[0.75 0.75 0.75],[0.4 0.4 0.4]}
 
-% %build an index key
-% tableName           =       {'JuniorSenior'};
-% i.junior  = 1;
-% i.senior  = 2;
-% groupUnique         =        [i.junior i.senior];
-% groupLabels         =        {'Junior','Senior'};
-% groupColors         =        {[0.75 0.75 0.75],[0.4 0.4 0.4]}
-% 
-% groups              =       numExcel(:,47);
-% groups(groups<5)    =       i.junior;
-% groups(groups>=5)   =       i.senior;
+groups              =       numExcel(:,47);
+groups(groups<5)    =       i.junior;
+groups(groups>=5)   =       i.senior;
 
-%build an index key
-%tableName                     =       {'OriginalSplits'}
-% groupUnique                  =       [4 5 6 7]; %...here refer to respKey{47} for the numbers in the first column
-% groupLabels                  =       respKey{47}(groupUnique,2);
-% groupUnique                  =       cell2mat(respKey{47}(groupUnique,1))';
-% groupColors(groupUnique)     =       {[1 1 1],[0.75 0.75 0.75],[0.4 0.4 0.4],[0 0 0]};
-% 
-% groups                              =       numExcel(:,47);
-% groups(~ismember(groups,groupUnique))  =       nan;
+elseif splitGroup == [3];
+
+tableName                     =       {'OriginalSplits'}
+groupUnique                  =       [4 5 6 7]; %...here refer to respKey{47} for the numbers in the first column
+groupLabels                  =       respKey{47}(groupUnique,2);
+groupUnique                  =       cell2mat(respKey{47}(groupUnique,1))';
+groupColors(groupUnique)     =       {[1 1 1],[0.75 0.75 0.75],[0.4 0.4 0.4],[0 0 0]};
+
+groups                              =       numExcel(:,47);
+groups(~ismember(groups,groupUnique))  =       nan;
+
+end
 
 
-
-
-for Y = 1:length(yQuest); %...for each different question (is it's own figure)
+for iQ = quests; %...for each different question (is it's own figure)
     
     figure; f = 1;getTicks = [];
        
-yResp               =     respKey{yQuest(Y)}(:,2); %...get the different responses for this question
-yNums               =     cell2mat(respKey{yQuest(Y)}(:,1)); %...get the number keys for each answer      
+yResp               =     respKey{iQ}(:,2); %...get the different responses for this question
+yNums               =     cell2mat(respKey{iQ}(:,1)); %...get the number keys for each answer      
 yResp(isnan(yNums)) =     []; %...remove nans caused by people skipping the question
 yNums(isnan(yNums)) =     []; %...remove nans caused by people skipping the question
-yData               =     numExcel(:,yQuest(Y));%...get the response data for each participant
+yData               =     numExcel(:,iQ);%...get the response data for each participant
 
 
 %%build a table of proportions and other details
 tmpTable = array2table([num2cell(NaN(length(yResp)+10,length(groupLabels)));[{'_'},{'empty'}]]);
-% tmpTable.Properties.VariableTypes = {repmat('double',length(yResp)+10,1);'string'};
 tmpTable.Properties.VariableNames = groupLabels;
 tmpTable.Properties.RowNames = [yResp;'Total';'Median';'Mean';'Std';'zStat';'zPvalue';'tStat';'tPvalue';...
                                         'zStat Compare';'zP Compare';'Question'];
-tmpTable(length(yResp)+11,2) = quesExcel(yQuest(Y),2);                                  
+tmpTable(length(yResp)+11,2) = quesExcel(iQ,2);                                  
 
 for cat = 1:length(yResp) %...for each category of answer
    
@@ -191,7 +189,7 @@ end
 %This builds where the question responses are on the x axis
 xLabels = 1+ceil(length(groupUnique)/2):length(groupUnique)+2:(length(groupUnique)+2)*length(yResp);
 
-title(quesExcel(yQuest(Y),2),'FontSize',20)
+title(quesExcel(iQ,2),'FontSize',20)
 ylabel('Proportion of Responses')
 set(gca,'xtick',[xLabels],'xticklabels',yResp,'FontSize',20)
 xtickangle(45)
@@ -202,7 +200,7 @@ legend(groupLabels)
 
 for sub = groupUnique
 tmpTable{length(yResp)+1,sub}     =      {sum(cell2mat(tmpTable{1:length(yResp),sub}))};
-end;questTables.(tableName{1}).(strcat('quest_',num2str(yQuest(Y)))) = tmpTable; clear tmpTable;
+end;questTables.(tableName{1}).(strcat('quest_',num2str(iQ))) = tmpTable; clear tmpTable;
 
 end
 
@@ -221,13 +219,13 @@ ALL         =       numExcel(:,47)==0;
 
 groupidx    =       [JUNIOR SENIOR ALL];  
 
-questions   =       [3 40];
+quests   =       [3 40];
 
 for group = 1:3;
     
 idx = groupidx(:,group);
     
-for q = 1:length(questions)
+for q = 1:length(quests)
 
 
 noSubj(q,group)              =   sum(idx);
