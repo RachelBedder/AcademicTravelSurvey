@@ -36,7 +36,7 @@ numExcel    =   numExcel(~incomplete,:);
 
 %% For each of the questions, match the text answers to the numerical response
 
-quests = [3:59]; %...this refers to the columns in the excel files
+quests = [1:56]; %...this refers to the columns in the excel files
 
 for iQ = quests 
     
@@ -70,7 +70,7 @@ end
 %% Create plots and tables for different splits of the data.
 
 %... first identify the questions (columns in the excel data)
-quests          =       [3 5 6 16 17 31 40]; 
+quests          =       [23:32]; 
 %...chose an index key from below, this will just run one split at a time
 %so do not add a vector. These will select from the index keys below
 splitGroup      =       [2];
@@ -94,7 +94,7 @@ tableName           =       {'JuniorSenior'};
 i.junior  = 1;
 i.senior  = 2;
 groupUnique         =        [i.junior i.senior];
-groupLabels         =        {'Junior','Senior'};
+groupLabels         =        {'Junior','Senior'}; %stats just between 1 and 2
 groupColors         =        {[0.75 0.75 0.75],[0.4 0.4 0.4]}
 
 groups              =       numExcel(:,47);
@@ -103,7 +103,7 @@ groups(groups>=5)   =       i.senior;
 
 elseif splitGroup == [3];
 
-tableName                     =       {'OriginalSplits'}
+tableName                    =       {'OriginalSplits'}
 groupUnique                  =       [4 5 6 7]; %...here refer to respKey{47} for the numbers in the first column
 groupLabels                  =       respKey{47}(groupUnique,2);
 groupUnique                  =       cell2mat(respKey{47}(groupUnique,1))';
@@ -111,6 +111,33 @@ groupColors(groupUnique)     =       {[1 1 1],[0.75 0.75 0.75],[0.4 0.4 0.4],[0 
 
 groups                              =       numExcel(:,47);
 groups(~ismember(groups,groupUnique))  =       nan;
+
+elseif splitGroup == [4];
+
+tableName           =       {'DisabilityChronic'};
+i.dischron  = 1;
+i.non  = 2;
+groupUnique         =        [i.dischron i.non];
+groupLabels         =        {'Dishchron','Non'}; %stats just between 1 and 2
+groupColors         =        {[0.75 0.75 0.75],[0.4 0.4 0.4]};
+
+groups              =       numExcel(:,55);
+groups(groups==1)    =       i.dischron;
+groups(groups~=1)   =       i.non;
+
+elseif splitGroup == [5];
+
+tableName           =       {'Gender'};
+i.male  = 1;
+i.female  = 2;
+groupUnique         =        [i.male i.female];
+groupLabels         =        {'Male','Female'}; %stats just between 1 and 2
+groupColors         =        {[0.75 0.75 0.75],[0.4 0.4 0.4]};
+
+groups              =       numExcel(:,49);
+groups(groups==1)    =       i.male;
+groups(groups~=1)   =       i.female;
+
 
 end
 
@@ -178,8 +205,12 @@ if strcmp(tableName,'JuniorSenior')
 %     end
     
     %compare the average score 
-    [p,~,stats]   =   ranksum(yData(groups==1),yData(groups==2));
+    [p,~,stats]   =   ranksum(yData(groups==1 & ~isnan(yData)),yData(groups==2 & ~isnan(yData)));
+   try %doesn't return a zvalue if the sample is too small (I think)
     tmpTable{length(yResp)+9,1}  =   {stats.zval};  
+   catch
+       tmpTable{length(yResp)+9,1} = {NaN};
+   end
     tmpTable{length(yResp)+10,1}  =  {p};     
     
 end
@@ -205,6 +236,145 @@ end;questTables.(tableName{1}).(strcat('quest_',num2str(iQ))) = tmpTable; clear 
 end
 
 
+%% Look at the disability questions seperately
+
+disIdx          =   numExcel(:,55)==1;
+
+quests          =       [16:22]; 
+
+for iQ = quests;
+countResp(:,1)      =   num2cell(unique(numExcel(disIdx,iQ)));
+countResp(:,2)      =   arrayfun(@(x)length(find(numExcel(disIdx,iQ) == x)), unique(numExcel(disIdx,iQ)), 'Uniform', false);
+countResp(:,[3 4])  =   respKey{iQ};
+
+quesExcel{iQ,:}
+countResp
+
+clear countResp
+end
 
 
-%
+
+%% In lieu of the appropriate statistical test, look plot average differences between groups
+clear groupidx
+groupidx(:,1)              =       numExcel(:,47);      groupPairs{1} = {'Junior','Senior'};
+groupidx(groupidx(:,1)<5) = 1;groupidx(groupidx(:,1)>=5) = 2; %SAVE INDEXES MADE ABOVE INSTEAD
+groupidx(:,2)              =       numExcel(:,49);      groupPairs{2} = {'Male','Female'};
+
+groupidx(groupidx>2) = NaN;
+
+groupidx(:,3) = nan(length(groupidx),1);
+groupidx(groupidx(:,1)==1 & groupidx(:,2)==1,3) = [1]; %junior and male
+groupidx(groupidx(:,1)==1 & groupidx(:,2)==2,3) = [2]; %junior and female
+groupidx(groupidx(:,1)==2 & groupidx(:,2)==1,3) = [3]; %senior and male
+groupidx(groupidx(:,1)==2 & groupidx(:,2)==2,3) = [4]; %senior and female;  
+groupPairs{3} = {'JunMal','JunFem','SenMal','SenFem'};
+
+groupidx(:,4)              =       numExcel(:,53);      groupPairs{4} = {'University','Grant'};
+groupidx(groupidx(:,4)==1,4) = 1;  groupidx(groupidx(:,4)~=1,4) = 2; %we assume other is a grant here, be more specific later
+
+questPairs = {[10 14],[8 12],[10 11],[8 9]};
+questTitles = {'Should support carbon offsetting','Support Travel by train were possible','Universities support of carbon offsetting','Universities support train travel'}
+questLabels = {{'Universitory','Funders'},{'Universitory','Funders'},{'Voluntary','Mandatory'},{'Voluntary','Mandatory'}}
+
+for G = 1:size(groupidx,2)
+figure;
+for iQ = 1:size(questPairs,2)
+quests = questPairs{iQ};
+groups    =   groupidx(:,G);
+
+%FIX ERRORBARS FOR THE NANS
+for j = unique(groups)'
+subplot(2,2,iQ)
+errorbar([1 2]+j*0.1,nanmedian(numExcel(groups==j,quests)),nanstd(numExcel(groups==j,quests))./sqrt(sum(groups==j & ~isnan(numExcel(:,quests)))),'LineWidth',3); hold on
+end
+set(gca,'xtick',[1 2],'xticklabels',questLabels{iQ})
+title(questTitles{iQ})
+xlim([0 3]);
+ylim([-2 4])
+if iQ == 1;
+    legend(groupPairs{G})
+end
+
+end
+end
+
+%% Plotting the incentives
+
+quests = [33:36];
+
+%plot average ranking for each incentive for each group
+
+groups = groupidx(:,1);
+
+for G = 1:size(groupidx,2)
+figure;
+
+groups    =   groupidx(:,G);
+
+for j = unique(groups)'
+errorbar(nanmean(numExcel(groups==j,quests)),nanstd(numExcel(groups==j,quests))./sqrt(sum(groups==j & ~isnan(numExcel(:,quests)))),'LineWidth',3); hold on
+end
+
+xlim([0 5])
+set(gca, 'YDir','reverse')
+legend(groupPairs{G})
+set(gca,'xtick',[1:4],'xticklabels',{'First Class','Overnight Stay','Extra Annual Leave','Green in Grants'});xtickangle(45)
+ylabel('Average Ordered Ranking (1 is most prefered)')
+end
+
+
+%% Ranking concerns on increased train by group
+
+quests = [23:31];
+
+groups = groupidx(:,3);
+
+for G = 1:size(groupidx,2)
+figure;
+
+groups    =   groupidx(:,G);
+
+for j = unique(groups)'
+errorbar(nanmean(numExcel(groups==j,quests)),nanstd(numExcel(groups==j,quests))./sqrt(sum(groups==j & ~isnan(numExcel(:,quests)))),'LineWidth',3); hold on
+end
+
+xlim([0 10]);ylim([0 2])
+legend(groupPairs{G})
+set(gca,'ytick',[0 1 2],'yticklabels',{'Not a concern','Minor Concern','Major Concern'})
+set(gca,'xtick',[1:9],'xticklabels',{'Too expensive','Too long','Time away from home','Time away from science'...
+                            'Lack of support from seniors','Take AL','Seen less serious','Harm Junior','Harm Senior'});xtickangle(45)
+% ylabel('Average Ordered Ranking (1 is most prefered)')
+end
+
+%% Ranking concerns on reduced flying by group
+
+quests = [16:22];
+
+%plot average ranking for each incentive for each group
+
+groups = groupidx(:,1);
+
+for G = 1:size(groupidx,2)
+figure;
+
+groups    =   groupidx(:,G);
+
+for j = unique(groups)'
+errorbar(nanmean(numExcel(groups==j,quests)),nanstd(numExcel(groups==j,quests))./sqrt(sum(groups==j & ~isnan(numExcel(:,quests)))),'LineWidth',3); hold on
+end
+
+xlim([0 8]);ylim([0 2])
+legend(groupPairs{G})
+set(gca,'ytick',[0 1 2],'yticklabels',{'Not a concern','Minor Concern','Major Concern'})
+set(gca,'xtick',[1:7],'xticklabels',{'Giving a video talk','Attending video talk','Reduced network','Lack of support from senior'...
+                            'Seen less serious','Harm Junior','Harm Senior'});xtickangle(45)
+% ylabel('Average Ordered Ranking (1 is most prefered)')
+end
+
+
+
+
+
+
+
